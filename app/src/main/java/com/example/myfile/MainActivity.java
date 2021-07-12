@@ -9,12 +9,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -28,42 +31,96 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView rcvListFolder;
     private ListFolderAdapter listFolderAdapter;
     private String TAG = "MY FILE";
+    private File currentFile;
+    private TextView tvBreadcrumb;
+    private int countBackPress;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        countBackPress = 0;
         rcvListFolder = findViewById(R.id.rcvListFolder);
+        tvBreadcrumb = findViewById(R.id.breadcrumb);
         listFolder = new ArrayList<Folder>();
-        createList();
+        currentFile = new File(Environment.getExternalStorageDirectory().toString());
         listFolderAdapter = new ListFolderAdapter(this, (ArrayList<Folder>) listFolder);
+        listFolderAdapter.setmInterface(new ListFolderAdapter.MyInterface() {
+            @Override
+            public void mOnclick(Folder folder) {
+                countBackPress = 0;
+                if (folder.isFolder) {
+                    currentFile = folder.getThis();
+                    createList();
+                } else {
+                    open_file(folder.getThis());
+                }
+            }
+        });
         rcvListFolder.setAdapter(listFolderAdapter);
         rcvListFolder.setLayoutManager(new LinearLayoutManager(this));
+        createList();
+    }
+
+    public void open_file(File file) {
+
+        // Get URI and MIME type of file
+        Uri uri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", file);
+        String mime = getContentResolver().getType(uri);
+
+        // Open file with user selected app
+        Intent intent = new Intent();
+        intent.setAction(Intent.ACTION_VIEW);
+        intent.setDataAndType(uri, mime);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(intent);
     }
 
     void createList() {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.MANAGE_EXTERNAL_STORAGE}, 1);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 2);
 
-        String path = Environment.getExternalStorageDirectory().toString();
-        if (getIntent().getStringExtra("path") != null) {
-            path = getIntent().getStringExtra("path");
-        }
-        File f = new File(path);
+        tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
+        File f = currentFile;
         File[] files = f.listFiles();
-        for (File inFile : files) {
-            Folder folder = new Folder();
-            folder.setPath(inFile.getAbsolutePath());
-            folder.setFolderName(inFile.getName());
-            folder.setCreatedDate(new Date(inFile.lastModified()));
-            folder.isFolder = inFile.isDirectory();
-            if (folder.isFolder) folder.setNumberChild(inFile.listFiles().length);
-            else {
-                folder.setNumberChild(inFile.length());
+        listFolder.clear();
+        if (files != null) {
+            for (File inFile : files) {
+                if (inFile.isHidden()) continue;
+                Folder folder = new Folder();
+                folder.setPath(inFile.getAbsolutePath());
+                folder.setFolderName(inFile.getName());
+                folder.setCreatedDate(new Date(inFile.lastModified()));
+                folder.isFolder = inFile.isDirectory();
                 folder.setThis(inFile);
+                if (folder.isFolder)
+                    folder.setNumberChild(inFile.listFiles() == null ? 0 : inFile.listFiles().length);
+                else {
+                    folder.setNumberChild(inFile.length());
+                }
+                listFolder.add(folder);
             }
-            listFolder.add(folder);
         }
+
         Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
+        listFolderAdapter.notifyDataSetChanged();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (!currentFile.getAbsolutePath().equals(Environment.getExternalStorageDirectory().toString())) {
+            currentFile = currentFile.getParentFile();
+            createList();
+        }
+        else{
+            countBackPress++;
+            if(countBackPress == 1){
+                Toast.makeText(this, "Chạm lần nữa để thoát", Toast.LENGTH_SHORT).show();
+            }
+            else{
+                finish();
+            }
+        }
     }
 
     void log(String s) {

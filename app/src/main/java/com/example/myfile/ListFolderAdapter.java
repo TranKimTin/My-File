@@ -1,9 +1,12 @@
 package com.example.myfile;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,14 +19,22 @@ import android.widget.Toast;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.ViewHolder> {
     private ArrayList<Folder> listFolder;
     private Context mContext;
+    MyInterface mInterface;
+
+    public void setmInterface(MyInterface mInterface) {
+        this.mInterface = mInterface;
+    }
 
     public ListFolderAdapter(Context context, ArrayList<Folder> list) {
         listFolder = list;
@@ -78,13 +89,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (listFolder.get(position).isFolder) {
-                    Intent intent = new Intent(mContext, MainActivity.class);
-                    intent.putExtra("path", listFolder.get(position).getPath());
-                    mContext.startActivity(intent);
-                } else {
-                    open_file(listFolder.get(position).getThis());
-                }
+                mInterface.mOnclick(listFolder.get(position));
             }
         });
     }
@@ -105,19 +110,10 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
             tvNumberChild = itemView.findViewById(R.id.tvNumberChild);
             imvFolder = itemView.findViewById(R.id.imvFolder);
         }
+
     }
 
-    public void open_file(File file) {
-
-        // Get URI and MIME type of file
-        Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", file);
-        String mime = mContext.getContentResolver().getType(uri);
-
-        // Open file with user selected app
-        Intent intent = new Intent();
-        intent.setAction(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, mime);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        mContext.startActivity(intent);
+    public interface MyInterface{
+        void mOnclick(Folder folder);
     }
 }
