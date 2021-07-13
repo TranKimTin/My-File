@@ -25,6 +25,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -36,7 +39,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     private Context mContext;
     private MyInterface mInterface;
     private boolean showSelect;
-
+    ThreadPoolExecutor executor;
     public boolean isSelectedAll() {
         for (Folder f : listFolder)
             if (!f.isSelected())
@@ -60,6 +63,15 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         listFolder = list;
         mContext = context;
         showSelect = false;
+
+        int corePoolSize = 10;
+        int maximumPoolSize = 50;
+        int queueCapacity = 500;
+        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                maximumPoolSize, // số maximumPoolSize
+                5, // thời gian một thread được sống nếu không làm gì
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
     }
 
     public void clearSelected() {
@@ -130,18 +142,23 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         else holder.imvFolder.setImageResource(R.drawable.text_file);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (folder.getFolderName().matches(".*mp4") ||
-                    folder.getFolderName().matches(".*png") ||
+            if (folder.getFolderName().matches(".*png") ||
                     folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg") ||
-                    folder.getFolderName().matches(".*GIF")) {
-                try {
-                    Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
-                    Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
-                    holder.imvFolder.setImageBitmap(thumbnail);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                    folder.getFolderName().matches(".*jpeg")) {
+                ThreadGetImage t = new ThreadGetImage();
+                t.setInterfaceGetImage(new InterfaceGetImage() {
+                    @Override
+                    public void onRun() {
+                        try {
+                            Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
+                            Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                            holder.imvFolder.setImageBitmap(thumbnail);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                executor.execute(t);
             }
 
         }
@@ -194,5 +211,22 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         void mOnclick(Folder folder);
 
         void mOnLongClick(Folder folder);
+    }
+
+    public interface InterfaceGetImage {
+        void onRun();
+    }
+
+    public class ThreadGetImage implements Runnable {
+        InterfaceGetImage interfaceGetImage;
+
+        public void setInterfaceGetImage(InterfaceGetImage interfaceGetImage) {
+            this.interfaceGetImage = interfaceGetImage;
+        }
+
+        @Override
+        public void run() {
+            interfaceGetImage.onRun();
+        }
     }
 }
