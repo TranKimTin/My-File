@@ -298,7 +298,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btnSave:
                 int corePoolSize = 50;
                 int maximumPoolSize = 100;
-                int queueCapacity = 5000;
+                int queueCapacity = 10000;
                 ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
                         maximumPoolSize, // số maximumPoolSize
                         60, // thời gian một thread được sống nếu không làm gì

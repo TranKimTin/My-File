@@ -5,10 +5,12 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,6 +20,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -125,6 +128,23 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         else if (folder.getFolderName().matches(".*GIF"))
             holder.imvFolder.setImageResource(R.drawable.image_file);
         else holder.imvFolder.setImageResource(R.drawable.text_file);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            if (folder.getFolderName().matches(".*mp4") ||
+                    folder.getFolderName().matches(".*png") ||
+                    folder.getFolderName().matches(".*jpg") ||
+                    folder.getFolderName().matches(".*jpeg") ||
+                    folder.getFolderName().matches(".*GIF")) {
+                try {
+                    Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
+                    Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                    holder.imvFolder.setImageBitmap(thumbnail);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
 
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
