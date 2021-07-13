@@ -24,17 +24,8 @@ public class MyThread implements Runnable {
     @Override
     public void run() {
         try {
-            if(status == COPY){
-                if (src.isDirectory()) {
-                    copyDir(src, dest);
-                } else {
-                    copyFile(src, dest);
-                }
-            }
-            else if(status == DELETE){
-                src.delete();
-            }
-
+            if (status == COPY) copyFile(src, dest);
+            else if (status == DELETE) src.delete();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -63,24 +54,5 @@ public class MyThread implements Runnable {
         } finally {
             in.close();
         }
-    }
-
-    void copyDir(File src, File dest) {
-        if (!dest.exists()) dest.mkdir();
-        File[] files = src.listFiles();
-        if (files == null) return;
-        int corePoolSize = 100;
-        int maximumPoolSize = 500;
-        int queueCapacity = files.length;
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                maximumPoolSize, // số maximumPoolSize
-                60, // thời gian một thread được sống nếu không làm gì
-                TimeUnit.SECONDS,
-                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
-        for (File file : files) {
-            File d = new File(dest.getAbsolutePath() + "/" + file.getName());
-            executor.execute(new MyThread(file, d, status));
-        }
-        executor.shutdown();
     }
 }

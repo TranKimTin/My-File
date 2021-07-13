@@ -226,6 +226,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    void deleteDir(File file) {
+        if (file.isDirectory()) {
+            File files[] = file.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    deleteDir(f);
+                }
+            }
+        }
+        file.delete();
+    }
+
+    void copy(File src, File dest, ThreadPoolExecutor executor) {
+        if (src.isDirectory()) {
+            if (!dest.exists()) dest.mkdir();
+            File[] files = src.listFiles();
+            if (files == null) return;
+            for (File file : files) {
+                File d = new File(dest.getAbsolutePath() + "/" + file.getName());
+                copy(file, d, executor);
+            }
+        } else {
+            executor.execute(new MyThread(src, dest, COPY));
+        }
+    }
+
+    void await(ThreadPoolExecutor executor) {
+        try {
+            while (!executor.awaitTermination(50, TimeUnit.MILLISECONDS)) ;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
@@ -262,9 +296,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 status = FREE;
                 break;
             case R.id.btnSave:
-                int corePoolSize = 100;
-                int maximumPoolSize = 500;
-                int queueCapacity = listFileSelected.size();
+                int corePoolSize = 50;
+                int maximumPoolSize = 100;
+                int queueCapacity = 5000;
                 ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
                         maximumPoolSize, // số maximumPoolSize
                         60, // thời gian một thread được sống nếu không làm gì
@@ -273,26 +307,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (status == COPY) {
                     for (File f : listFileSelected) {
                         File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
-                        executor.execute(new MyThread(f, dest, COPY));
+                        copy(f, dest, executor);
                     }
                     executor.shutdown();
+                    await(executor);
                     Toast.makeText(this, "Copy thành công", Toast.LENGTH_SHORT).show();
                 } else if (status == DELETE) {
                     for (File f : listFileSelected) {
                         deleteFile(f, executor);
                     }
-                }
-                executor.shutdown();
-                while (true) {
-                    try {
-                        if (!!executor.awaitTermination(50, TimeUnit.MILLISECONDS)) break;
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-
+                    executor.shutdown();
+                    await(executor);
+                    for (File f : listFileSelected) {
+                        deleteDir(f);
                     }
                     Toast.makeText(this, "Delete thành công", Toast.LENGTH_SHORT).show();
+                } else if (status == MOVE) {
+                    Toast.makeText(this, "Chưa làm chức năng này", Toast.LENGTH_SHORT).show();
                 }
-
                 sidebarSave.setVisibility(View.GONE);
                 status = FREE;
                 createList();
