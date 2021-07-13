@@ -7,14 +7,94 @@
     android:layout_weight="10"
     android:orientation="horizontal"
     tools:context=".MainActivity">
-    <TextView
-        android:layout_width="wrap_content"
+
+    <RelativeLayout
+        android:id="@+id/layouTop"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/breadcrumb"
-        android:padding="10dp" />
+        android:background="@drawable/textline">
+
+        <CheckBox
+            android:id="@+id/cbxAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/breadcrumb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toRightOf="@+id/cbxAll"
+            android:padding="10dp" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/layoutBottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true">
+
+        <RelativeLayout
+            android:id="@+id/sidebar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="5dp"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnMove"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:text="Move" />
+
+            <Button
+                android:id="@+id/btnCopy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:layout_toRightOf="@+id/btnMove"
+                android:text="Copy" />
+
+            <Button
+                android:id="@+id/btnDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:layout_toRightOf="@+id/btnCopy"
+                android:text="Delete" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/sidebar_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="5dp"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:text="Paste" />
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:layout_toRightOf="@+id/btnSave"
+                android:text="Cancel" />
+        </RelativeLayout>
+    </RelativeLayout>
+
+
     <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rcvListFolder"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/rcvListFolder"
-        android:layout_below="@+id/breadcrumb" />
+        android:layout_above="@+id/layoutBottom"
+        android:layout_below="@+id/layouTop" />
 </RelativeLayout>

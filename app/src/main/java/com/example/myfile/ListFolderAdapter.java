@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -30,7 +31,23 @@ import androidx.recyclerview.widget.RecyclerView;
 public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.ViewHolder> {
     private ArrayList<Folder> listFolder;
     private Context mContext;
-    MyInterface mInterface;
+    private MyInterface mInterface;
+    private boolean showSelect;
+
+    public boolean isSelectedAll() {
+        for (Folder f : listFolder)
+            if (!f.isSelected())
+                return false;
+        return true;
+    }
+
+    public void setShowSelect(boolean showSelect) {
+        this.showSelect = showSelect;
+    }
+
+    public boolean isShowSelect() {
+        return showSelect;
+    }
 
     public void setmInterface(MyInterface mInterface) {
         this.mInterface = mInterface;
@@ -39,6 +56,26 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     public ListFolderAdapter(Context context, ArrayList<Folder> list) {
         listFolder = list;
         mContext = context;
+        showSelect = false;
+    }
+
+    public void clearSelected() {
+        for (Folder f : listFolder) {
+            f.setSelected(false);
+        }
+    }
+
+    void selectAll() {
+        for (Folder f : listFolder) {
+            f.setSelected(true);
+        }
+    }
+
+    boolean empty() {
+        for (Folder f : listFolder)
+            if (f.isSelected())
+                return false;
+        return true;
     }
 
     @NonNull
@@ -52,6 +89,9 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        if (showSelect) holder.cbxSelected.setVisibility(View.VISIBLE);
+        else holder.cbxSelected.setVisibility(View.GONE);
+        holder.cbxSelected.setChecked(listFolder.get(position).isSelected());
         Folder folder = listFolder.get(position);
         holder.tvName.setText(folder.getFolderName());
         if (folder.isFolder) holder.tvNumberChild.setText(folder.getNumberChild() + " mục");
@@ -92,6 +132,21 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
                 mInterface.mOnclick(listFolder.get(position));
             }
         });
+
+        holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mInterface.mOnLongClick(listFolder.get(position));
+                return true;
+            }
+        });
+        holder.cbxSelected.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                listFolder.get(position).setSelected(!listFolder.get(position).isSelected());
+                notifyDataSetChanged();
+            }
+        });
     }
 
     @Override
@@ -102,6 +157,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     public class ViewHolder extends RecyclerView.ViewHolder {
         private TextView tvName, tvCreatedDate, tvNumberChild;
         private ImageView imvFolder;
+        private CheckBox cbxSelected;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -109,11 +165,14 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
             tvCreatedDate = itemView.findViewById(R.id.tvCreatedDate);
             tvNumberChild = itemView.findViewById(R.id.tvNumberChild);
             imvFolder = itemView.findViewById(R.id.imvFolder);
+            cbxSelected = itemView.findViewById(R.id.cbxSelected);
         }
 
     }
 
-    public interface MyInterface{
+    public interface MyInterface {
         void mOnclick(Folder folder);
+
+        void mOnLongClick(Folder folder);
     }
 }

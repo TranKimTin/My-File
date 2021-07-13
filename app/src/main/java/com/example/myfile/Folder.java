@@ -13,9 +13,19 @@ public class Folder {
     public boolean isFolder;
     private Uri uri;
     private File This;
+    private boolean selected;
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
 
     Folder(){
         uri = null;
+        selected = false;
     }
     public File getThis() {
         return This;
