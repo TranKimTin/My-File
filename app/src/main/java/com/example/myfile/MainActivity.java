@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private List<Folder> listFolder;
@@ -149,17 +150,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
-    void setBitmap(Folder folder){
+    void setBitmap(Folder folder) {
+        if (folder.getBitmap() != null) return;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (!folder.isFolder() && folder.getFolderName().matches(".*png") ||
+            if (!folder.isFolder() && (folder.getFolderName().matches(".*png") ||
                     folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg")) {
+                    folder.getFolderName().matches(".*jpeg"))) {
                 Runnable t = new Runnable() {
                     @Override
                     public void run() {
                         try {
                             Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", folder.getThis());
-                            Bitmap thumbnail= getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                            Bitmap thumbnail = getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
                             folder.setBitmap(thumbnail);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -171,13 +173,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    Folder search(List<Folder> a, String s) {
+        if (a.size() == 0) return null;
+        int l = 0, r = a.size() - 1, mid;
+        while (l < r) {
+            mid = (l + r) / 2;
+            if (s.compareTo(a.get(mid).getPath()) <= 0) r = mid;
+            else l = mid + 1;
+        }
+        if (a.get(l).getPath().equals(s)) return a.get(l);
+        return null;
+    }
+
     void createList() {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.MANAGE_EXTERNAL_STORAGE}, 1);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 2);
         int MyVersion = Build.VERSION.SDK_INT;
         if (MyVersion > Build.VERSION_CODES.LOLLIPOP_MR1) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                if (!Environment.isExternalStorageManager()){
+                if (!Environment.isExternalStorageManager()) {
                     Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                     Uri uri = Uri.fromParts("package", getPackageName(), null);
                     intent.setData(uri);
@@ -188,13 +202,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
         File f = currentFile;
         File[] files = f.listFiles();
+        List<Folder> old = listFolder.stream()
+                .filter(item -> !item.isFolder() && (item.getFolderName().matches(".*png") ||
+                        item.getFolderName().matches(".*jpg") ||
+                        item.getFolderName().matches(".*jpeg")))
+                .sorted((a, b) -> a.getPath().compareTo(b.getPath()))
+                .collect(Collectors.toList());
+
         listFolder.clear();
-        listFolderAdapter.notifyDataSetChanged();
         if (files != null) {
             for (File inFile : files) {
                 if (inFile.isHidden()) continue;
+                String path = inFile.getAbsolutePath();
+                Folder tmp = search(old, path);
+                if (tmp != null) {
+                    listFolder.add(tmp);
+                    log("ok " + path);
+                    continue;
+                }
+                log("null " + path);
                 Folder folder = new Folder();
-                folder.setPath(inFile.getAbsolutePath());
+                folder.setPath(path);
                 folder.setFolderName(inFile.getName());
                 folder.setCreatedDate(new Date(inFile.lastModified()));
                 folder.isFolder = inFile.isDirectory();
@@ -209,7 +237,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
-        for(Folder folder : listFolder)
+        for (Folder folder : listFolder)
             setBitmap(folder);
         listFolderAdapter.notifyDataSetChanged();
     }
@@ -239,7 +267,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     void log(String s) {
-        Log.d("MY FILE", s);
+        Log.d(TAG, s);
     }
 
     boolean handleSidebar() {
@@ -376,7 +404,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else if (status == MOVE) {
                     //copy sau do delete
                     //copy
-                    if(currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())){
+                    if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
                         Toast.makeText(this, "Không được di chuyển đến thư mục con", Toast.LENGTH_SHORT).show();
                         return;
                     }

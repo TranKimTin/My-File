@@ -9,7 +9,6 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -88,7 +87,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        Log.d("CLICK", "create viewholder ");
         LayoutInflater inflater = LayoutInflater.from(mContext);
         View view = inflater.inflate(R.layout.row_recycleview, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
@@ -97,7 +95,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        Log.d("CLICK", "load " + listFolder.get(position).getFolderName());
         if (showSelect) holder.cbxSelected.setVisibility(View.VISIBLE);
         else holder.cbxSelected.setVisibility(View.GONE);
         holder.cbxSelected.setChecked(listFolder.get(position).isSelected());
@@ -149,7 +146,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d("CLICK", "click " + listFolder.get(position).getFolderName());
                 mInterface.mOnclick(listFolder.get(position));
                 if (showSelect) notifyItemChanged(position);
             }
@@ -158,7 +154,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                Log.d("CLICK", "longclick " + listFolder.get(position).getFolderName());
                 mInterface.mOnLongClick(listFolder.get(position));
                 return true;
             }

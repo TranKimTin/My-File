@@ -36,6 +36,7 @@ public class Folder {
     Folder(){
         uri = null;
         selected = false;
+        bitmap = null;
     }
     public File getThis() {
         return This;
