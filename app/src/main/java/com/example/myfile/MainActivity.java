@@ -108,6 +108,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void mOnLongClick(Folder folder) {
                 folder.setSelected(!folder.isSelected());
                 listFolderAdapter.setShowSelect(true);
+                cbxAll.setChecked(listFolderAdapter.isSelectedAll());
                 listFolderAdapter.notifyDataSetChanged();
                 cbxAll.setVisibility(View.VISIBLE);
                 sidebar.setVisibility(View.VISIBLE);
@@ -323,8 +324,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                     Toast.makeText(this, "Delete thành công", Toast.LENGTH_SHORT).show();
                 } else if (status == MOVE) {
-                    Toast.makeText(this, "Chưa làm chức năng này", Toast.LENGTH_SHORT).show();
+                    //copy sau do delete
+                    //copy
+                    if(currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())){
+                        Toast.makeText(this, "Không được di chuyển đến thư mục con", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    for (File f : listFileSelected) {
+                        File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
+                        copy(f, dest, executor);
+                    }
+                    executor.shutdown();
+                    await(executor);
+
+                    //delete
+                    executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                            maximumPoolSize, // số maximumPoolSize
+                            60, // thời gian một thread được sống nếu không làm gì
+                            TimeUnit.SECONDS,
+                            new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
+                    for (File f : listFileSelected) {
+                        deleteFile(f, executor);
+                    }
+                    executor.shutdown();
+                    await(executor);
+                    for (File f : listFileSelected) {
+                        deleteDir(f);
+                    }
+                    Toast.makeText(this, "Move thành công", Toast.LENGTH_SHORT).show();
                 }
+                listFileSelected.clear();
                 sidebarSave.setVisibility(View.GONE);
                 status = FREE;
                 createList();

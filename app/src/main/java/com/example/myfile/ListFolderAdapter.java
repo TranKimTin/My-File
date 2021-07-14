@@ -40,6 +40,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     private MyInterface mInterface;
     private boolean showSelect;
     ThreadPoolExecutor executor;
+
     public boolean isSelectedAll() {
         for (Folder f : listFolder)
             if (!f.isSelected())
@@ -65,8 +66,8 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         showSelect = false;
 
         int corePoolSize = 10;
-        int maximumPoolSize = 50;
-        int queueCapacity = 500;
+        int maximumPoolSize = 20;
+        int queueCapacity = 1000;
         executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
                 maximumPoolSize, // số maximumPoolSize
                 5, // thời gian một thread được sống nếu không làm gì
@@ -141,28 +142,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
             holder.imvFolder.setImageResource(R.drawable.image_file);
         else holder.imvFolder.setImageResource(R.drawable.text_file);
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (folder.getFolderName().matches(".*png") ||
-                    folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg")) {
-                ThreadGetImage t = new ThreadGetImage();
-                t.setInterfaceGetImage(new InterfaceGetImage() {
-                    @Override
-                    public void onRun() {
-                        try {
-                            Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
-                            Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
-                            holder.imvFolder.setImageBitmap(thumbnail);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-                executor.execute(t);
-            }
-
-        }
-
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -184,6 +163,32 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
                 notifyDataSetChanged();
             }
         });
+
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            if (folder.getFolderName().matches(".*png") ||
+                    folder.getFolderName().matches(".*jpg") ||
+                    folder.getFolderName().matches(".*jpeg")) {
+                String name = holder.tvName.getText().toString();
+                ThreadGetImage t = new ThreadGetImage();
+                t.setInterfaceGetImage(new InterfaceGetImage() {
+                    @Override
+                    public void onRun() {
+                        try {
+                            if (!holder.tvName.getText().equals(name)) return;
+                            Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
+                            if (!holder.tvName.getText().equals(name)) return;
+                            Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                            if (!holder.tvName.getText().equals(name)) return;
+                            holder.imvFolder.setImageBitmap(thumbnail);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                executor.execute(t);
+            }
+        }
     }
 
     @Override
@@ -204,7 +209,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
             imvFolder = itemView.findViewById(R.id.imvFolder);
             cbxSelected = itemView.findViewById(R.id.cbxSelected);
         }
-
     }
 
     public interface MyInterface {
