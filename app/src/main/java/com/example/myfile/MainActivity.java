@@ -5,18 +5,23 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import jp.wasabeef.recyclerview.animators.SlideInUpAnimator;
 
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.FileUtils;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Log;
+import android.util.Size;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -53,11 +58,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private List<File> listFileSelected;
     private int status;
     private final int FREE = 0, COPY = 1, MOVE = 2, DELETE = 3;
+    private ThreadPoolExecutor executor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        int corePoolSize = 50;
+        int maximumPoolSize = 100;
+        int queueCapacity = 10000;
+        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                maximumPoolSize, // số maximumPoolSize
+                500, // thời gian một thread được sống nếu không làm gì
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
 
         countBackPress = 0;
         status = FREE;
@@ -84,6 +99,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnSave.setOnClickListener(this);
         btnCancel.setOnClickListener(this);
 
+        rcvListFolder.setHasFixedSize(true);
+        rcvListFolder.setItemAnimator(new SlideInUpAnimator());
 
         listFolderAdapter.setmInterface(new ListFolderAdapter.MyInterface() {
             @Override
@@ -91,7 +108,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (listFolderAdapter.isShowSelect()) {
                     folder.setSelected(!folder.isSelected());
                     cbxAll.setChecked(listFolderAdapter.isSelectedAll());
-                    listFolderAdapter.notifyDataSetChanged();
                 } else {
                     countBackPress = 0;
                     if (folder.isFolder) {
@@ -101,7 +117,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         open_file(folder.getThis());
                     }
                 }
-
             }
 
             @Override
@@ -134,14 +149,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
+    void setBitmap(Folder folder){
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            if (!folder.isFolder() && folder.getFolderName().matches(".*png") ||
+                    folder.getFolderName().matches(".*jpg") ||
+                    folder.getFolderName().matches(".*jpeg")) {
+                Runnable t = new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", folder.getThis());
+                            Bitmap thumbnail= getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                            folder.setBitmap(thumbnail);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+                executor.execute(t);
+            }
+        }
+    }
+
     void createList() {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.MANAGE_EXTERNAL_STORAGE}, 1);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 2);
-
+        int MyVersion = Build.VERSION.SDK_INT;
+        if (MyVersion > Build.VERSION_CODES.LOLLIPOP_MR1) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (!Environment.isExternalStorageManager()){
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    startActivity(intent);
+                }
+            }
+        }
         tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
         File f = currentFile;
         File[] files = f.listFiles();
         listFolder.clear();
+        listFolderAdapter.notifyDataSetChanged();
         if (files != null) {
             for (File inFile : files) {
                 if (inFile.isHidden()) continue;
@@ -161,6 +209,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
+        for(Folder folder : listFolder)
+            setBitmap(folder);
         listFolderAdapter.notifyDataSetChanged();
     }
 
@@ -358,6 +408,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 sidebarSave.setVisibility(View.GONE);
                 status = FREE;
                 createList();
+                break;
+            default:
+                break;
         }
     }
 }

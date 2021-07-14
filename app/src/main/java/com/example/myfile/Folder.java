@@ -1,5 +1,6 @@
 package com.example.myfile;
 
+import android.graphics.Bitmap;
 import android.net.Uri;
 
 import java.io.File;
@@ -14,6 +15,15 @@ public class Folder {
     private Uri uri;
     private File This;
     private boolean selected;
+    private Bitmap bitmap;
+
+    public Bitmap getBitmap() {
+        return bitmap;
+    }
+
+    public void setBitmap(Bitmap bitmap) {
+        this.bitmap = bitmap;
+    }
 
     public boolean isSelected() {
         return selected;

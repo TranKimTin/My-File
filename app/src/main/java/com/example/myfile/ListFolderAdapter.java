@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     private Context mContext;
     private MyInterface mInterface;
     private boolean showSelect;
-    ThreadPoolExecutor executor;
 
     public boolean isSelectedAll() {
         for (Folder f : listFolder)
@@ -64,15 +64,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         listFolder = list;
         mContext = context;
         showSelect = false;
-
-        int corePoolSize = 10;
-        int maximumPoolSize = 20;
-        int queueCapacity = 1000;
-        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                maximumPoolSize, // số maximumPoolSize
-                5, // thời gian một thread được sống nếu không làm gì
-                TimeUnit.SECONDS,
-                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
     }
 
     public void clearSelected() {
@@ -97,6 +88,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        Log.d("CLICK", "create viewholder ");
         LayoutInflater inflater = LayoutInflater.from(mContext);
         View view = inflater.inflate(R.layout.row_recycleview, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
@@ -105,6 +97,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Log.d("CLICK", "load " + listFolder.get(position).getFolderName());
         if (showSelect) holder.cbxSelected.setVisibility(View.VISIBLE);
         else holder.cbxSelected.setVisibility(View.GONE);
         holder.cbxSelected.setChecked(listFolder.get(position).isSelected());
@@ -113,16 +106,16 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         if (folder.isFolder) holder.tvNumberChild.setText(folder.getNumberChild() + " mục");
         else {
             float capa = folder.getNumberChild();
-            String unit = "b";
+            String unit = "B";
             if (capa >= 1024) {
                 capa /= 1024;
-                unit = "kb";
+                unit = "KB";
                 if (capa >= 1024) {
                     capa /= 1024;
-                    unit = "mb";
+                    unit = "MB";
                     if (capa >= 1024) {
                         capa /= 1024;
-                        unit = "gb";
+                        unit = "GB";
                     }
                 }
             }
@@ -132,26 +125,40 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         if (folder.isFolder) holder.imvFolder.setImageResource(R.drawable.folder);
         else if (folder.getFolderName().matches(".*mp4"))
             holder.imvFolder.setImageResource(R.drawable.mp4_file);
-        else if (folder.getFolderName().matches(".*png"))
-            holder.imvFolder.setImageResource(R.drawable.image_file);
-        else if (folder.getFolderName().matches(".*jpg"))
-            holder.imvFolder.setImageResource(R.drawable.image_file);
-        else if (folder.getFolderName().matches(".*jpeg"))
-            holder.imvFolder.setImageResource(R.drawable.image_file);
         else if (folder.getFolderName().matches(".*GIF"))
             holder.imvFolder.setImageResource(R.drawable.image_file);
-        else holder.imvFolder.setImageResource(R.drawable.text_file);
+        else if (folder.getFolderName().matches(".*png") || folder.getFolderName().matches(".*jpg") || folder.getFolderName().matches(".*jpeg")) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                if (listFolder.get(position).getBitmap() == null) {
+                    try {
+                        Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", folder.getThis());
+                        Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
+                        folder.setBitmap(thumbnail);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (listFolder.get(position).getBitmap() != null)
+                    holder.imvFolder.setImageBitmap(listFolder.get(position).getBitmap());
+                else holder.imvFolder.setImageResource(R.drawable.image_file);
+            } else {
+                holder.imvFolder.setImageResource(R.drawable.image_file);
+            }
+        } else holder.imvFolder.setImageResource(R.drawable.text_file);
 
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Log.d("CLICK", "click " + listFolder.get(position).getFolderName());
                 mInterface.mOnclick(listFolder.get(position));
+                if (showSelect) notifyItemChanged(position);
             }
         });
 
         holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
+                Log.d("CLICK", "longclick " + listFolder.get(position).getFolderName());
                 mInterface.mOnLongClick(listFolder.get(position));
                 return true;
             }
@@ -160,35 +167,9 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
             @Override
             public void onClick(View v) {
                 listFolder.get(position).setSelected(!listFolder.get(position).isSelected());
-                notifyDataSetChanged();
+                notifyItemChanged(position);
             }
         });
-
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (folder.getFolderName().matches(".*png") ||
-                    folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg")) {
-                String name = holder.tvName.getText().toString();
-                ThreadGetImage t = new ThreadGetImage();
-                t.setInterfaceGetImage(new InterfaceGetImage() {
-                    @Override
-                    public void onRun() {
-                        try {
-                            if (!holder.tvName.getText().equals(name)) return;
-                            Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", listFolder.get(position).getThis());
-                            if (!holder.tvName.getText().equals(name)) return;
-                            Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
-                            if (!holder.tvName.getText().equals(name)) return;
-                            holder.imvFolder.setImageBitmap(thumbnail);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-                executor.execute(t);
-            }
-        }
     }
 
     @Override
@@ -217,20 +198,4 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         void mOnLongClick(Folder folder);
     }
 
-    public interface InterfaceGetImage {
-        void onRun();
-    }
-
-    public class ThreadGetImage implements Runnable {
-        InterfaceGetImage interfaceGetImage;
-
-        public void setInterfaceGetImage(InterfaceGetImage interfaceGetImage) {
-            this.interfaceGetImage = interfaceGetImage;
-        }
-
-        @Override
-        public void run() {
-            interfaceGetImage.onRun();
-        }
-    }
 }
