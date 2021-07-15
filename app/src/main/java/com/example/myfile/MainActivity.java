@@ -196,25 +196,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
                 File f = currentFile;
                 File[] files = f.listFiles();
-                List<Folder> old = listFolder.stream()
-                        .filter(item -> !item.isFolder() && (item.getFolderName().matches(".*png") ||
-                                item.getFolderName().matches(".*jpg") ||
-                                item.getFolderName().matches(".*jpeg")))
-                        .sorted((a, b) -> a.getPath().compareTo(b.getPath()))
-                        .collect(Collectors.toList());
-
                 listFolder.clear();
                 if (files != null) {
                     for (File inFile : files) {
                         if (inFile.isHidden()) continue;
                         String path = inFile.getAbsolutePath();
-                        Folder tmp = search(old, path);
-                        if (tmp != null) {
-                            listFolder.add(tmp);
-                            log("ok " + path);
-                            continue;
-                        }
-                        log("null " + path);
                         Folder folder = new Folder();
                         folder.setPath(path);
                         folder.setFolderName(inFile.getName());
@@ -342,6 +328,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    void toast(String s){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), s, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
@@ -397,7 +392,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             }
                             executor.shutdown();
                             await(executor);
-                            Toast.makeText(getApplicationContext(), "Copy thành công", Toast.LENGTH_SHORT).show();
+                            toast("Copy thành công");
                         } else if (status == DELETE) {
                             for (File f : listFileSelected) {
                                 deleteFile(f, executor);
@@ -407,12 +402,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             for (File f : listFileSelected) {
                                 deleteDir(f);
                             }
-                            Toast.makeText(getApplicationContext(), "Delete thành công", Toast.LENGTH_SHORT).show();
+                            toast("Delete thành công");
                         } else if (status == MOVE) {
                             //copy sau do delete
                             //copy
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
-                                Toast.makeText(getApplicationContext(), "Không được di chuyển đến thư mục con", Toast.LENGTH_SHORT).show();
+                                toast("Không được di chuyển đến thư mục con");
                                 return;
                             }
 
@@ -437,10 +432,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             for (File f : listFileSelected) {
                                 deleteDir(f);
                             }
-                            Toast.makeText(getApplicationContext(), "Move thành công", Toast.LENGTH_SHORT).show();
+                            toast("Move thành công");
                         }
                         listFileSelected.clear();
-                        sidebarSave.setVisibility(View.GONE);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                sidebarSave.setVisibility(View.GONE);
+                            }
+                        });
+
                         status = FREE;
                         createList();
                     }

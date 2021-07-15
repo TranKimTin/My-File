@@ -41,6 +41,21 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     private boolean showSelect;
     private ThreadPoolExecutor executor;
 
+    public ListFolderAdapter(Context context, ArrayList<Folder> list) {
+        listFolder = list;
+        mContext = context;
+        showSelect = false;
+        int corePoolSize = 50;
+        int maximumPoolSize = 100;
+        int queueCapacity = 10000;
+        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                maximumPoolSize, // số maximumPoolSize
+                500, // thời gian một thread được sống nếu không làm gì
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
+
+    }
+
     public boolean isSelectedAll() {
         for (Folder f : listFolder)
             if (!f.isSelected())
@@ -58,21 +73,6 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
 
     public void setmInterface(MyInterface mInterface) {
         this.mInterface = mInterface;
-    }
-
-    public ListFolderAdapter(Context context, ArrayList<Folder> list) {
-        listFolder = list;
-        mContext = context;
-        showSelect = false;
-        int corePoolSize = 50;
-        int maximumPoolSize = 100;
-        int queueCapacity = 10000;
-        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                maximumPoolSize, // số maximumPoolSize
-                500, // thời gian một thread được sống nếu không làm gì
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
-
     }
 
     public void clearSelected() {
