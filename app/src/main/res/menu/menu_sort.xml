@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/item_name"
+        android:checkable="true"
+        android:title="Name"/>
+    <item android:id="@+id/item_date"
+        android:checkable="true"
+        android:title="Date"/>
+    <item android:id="@+id/item_type"
+        android:checkable="true"
+        android:title="Type"/>
+    <item android:id="@+id/item_asc"
+        android:checkable="true"
+        android:title="Ascending" />
+    <item android:id="@+id/item_desc"
+        android:checkable="true"
+        android:title="Descending"/>
+</menu>

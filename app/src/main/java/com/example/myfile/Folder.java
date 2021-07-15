@@ -24,10 +24,17 @@ public class Folder {
         this.selected = selected;
     }
 
-    Folder(){
+    Folder() {
         uri = null;
         selected = false;
     }
+
+    public String getExt() {
+        int index = folderName.lastIndexOf('.');
+        if (this.isFolder() || index < 0) return "";
+        return folderName.substring(index + 1);
+    }
+
     public File getThis() {
         return This;
     }

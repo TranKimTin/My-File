@@ -47,7 +47,7 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         showSelect = false;
         int corePoolSize = 50;
         int maximumPoolSize = 100;
-        int queueCapacity = 10000;
+        int queueCapacity = 1000;
         executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
                 maximumPoolSize, // số maximumPoolSize
                 500, // thời gian một thread được sống nếu không làm gì
@@ -130,11 +130,21 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         }
         holder.tvCreatedDate.setText(new SimpleDateFormat("dd/MM/yyyy hh:mm").format(folder.getCreatedDate()));
         if (folder.isFolder) holder.imvFolder.setImageResource(R.drawable.folder);
-        else if (folder.getFolderName().matches(".*mp4"))
+        else if (folder.getExt().equals("doc") || folder.getExt().equals("docx"))
+            holder.imvFolder.setImageResource(R.drawable.word);
+        else if (folder.getExt().equals("xls") || folder.getExt().equals("xlsx"))
+            holder.imvFolder.setImageResource(R.drawable.excel);
+        else if (folder.getExt().equals("ppt") || folder.getExt().equals("pptx"))
+            holder.imvFolder.setImageResource(R.drawable.powerpoint);
+        else if (folder.getExt().equals("pdf"))
+            holder.imvFolder.setImageResource(R.drawable.pdf);
+        else if (folder.getExt().equals("mp4"))
             holder.imvFolder.setImageResource(R.drawable.mp4_file);
-        else if (folder.getFolderName().matches(".*GIF"))
-            holder.imvFolder.setImageResource(R.drawable.image_file);
-        else if (folder.getFolderName().matches(".*png") || folder.getFolderName().matches(".*jpg") || folder.getFolderName().matches(".*jpeg")) {
+        else if (folder.getExt().equals("zip") || folder.getExt().equals("7z") || folder.getExt().equals("rar") || folder.getExt().equals("iso") || folder.getExt().equals("apk"))
+            holder.imvFolder.setImageResource(R.drawable.zip);
+        else if (folder.getExt().equals("gif"))
+            holder.imvFolder.setImageResource(R.drawable.gif);
+        else if (folder.getExt().equals("png") || folder.getExt().equals("jpg") || folder.getExt().equals("jpeg")) {
             holder.imvFolder.setImageResource(R.drawable.image_file);
         } else holder.imvFolder.setImageResource(R.drawable.text_file);
 
@@ -162,20 +172,18 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
         });
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (!folder.isFolder() && (folder.getFolderName().matches(".*png") ||
-                    folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg"))) {
+            if (!folder.isFolder() && (folder.getExt().equals("png") || folder.getExt().equals("jpg") || folder.getExt().equals("jpeg"))) {
                 String name = holder.tvName.getText().toString();
                 Runnable t = new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            if(!name.equals(holder.tvName.getText().toString())) return;
+                            if (!name.equals(holder.tvName.getText().toString())) return;
                             Uri uri = FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", folder.getThis());
-                            if(!name.equals(holder.tvName.getText().toString())) return;
+                            if (!name.equals(holder.tvName.getText().toString())) return;
                             Bitmap thumbnail = mContext.getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
-                            if(!name.equals(holder.tvName.getText().toString())) return;
-                            ((Activity)mContext).runOnUiThread(new Runnable() {
+                            if (!name.equals(holder.tvName.getText().toString())) return;
+                            ((Activity) mContext).runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
                                     holder.imvFolder.setImageBitmap(thumbnail);

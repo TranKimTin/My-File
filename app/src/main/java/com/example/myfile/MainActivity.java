@@ -2,10 +2,10 @@ package com.example.myfile;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import jp.wasabeef.recyclerview.animators.SlideInUpAnimator;
 
 import android.Manifest;
 import android.app.ProgressDialog;
@@ -23,6 +23,8 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -61,6 +63,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private int status;
     private final int FREE = 0, COPY = 1, MOVE = 2, DELETE = 3;
     private ProgressDialog progress;
+    private int fieldSort, option;
+    private final int NAME = 0, DATE = 1, TYPE = 2, ASC = 1, DESC = 2;
+    private MenuItem itemName, itemDate, itemType, itemASC, itemDESC;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,8 +77,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         progress.setTitle("Loading");
         progress.setMessage("Wait while loading...");
         progress.setCancelable(false); // disable dismiss by tapping outside of the dialog
+
         countBackPress = 0;
         status = FREE;
+        fieldSort = DATE;
+        option = DESC;
         listFolder = new ArrayList<Folder>();
         currentFile = new File(Environment.getExternalStorageDirectory().toString());
         listFolderAdapter = new ListFolderAdapter(this, (ArrayList<Folder>) listFolder);
@@ -95,9 +104,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnDelete.setOnClickListener(this);
         btnSave.setOnClickListener(this);
         btnCancel.setOnClickListener(this);
-
-        rcvListFolder.setHasFixedSize(true);
-        rcvListFolder.setItemAnimator(new SlideInUpAnimator());
 
         listFolderAdapter.setmInterface(new ListFolderAdapter.MyInterface() {
             @Override
@@ -147,21 +153,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
-    Folder search(List<Folder> a, String s) {
-        if (a.size() == 0) return null;
-        int l = 0, r = a.size() - 1, mid;
-        while (l < r) {
-            mid = (l + r) / 2;
-            if (s.compareTo(a.get(mid).getPath()) <= 0) r = mid;
-            else l = mid + 1;
-        }
-        if (a.get(l).getPath().equals(s)) return a.get(l);
-        return null;
-    }
-
     void showLoader() {
         try {
-            progress.show();
+            if (!progress.isShowing()) progress.show();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -169,10 +163,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     void dismisLoader() {
         try {
-            progress.dismiss();
+            if (progress.isShowing()) progress.dismiss();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    void sortList() {
+        if (fieldSort == NAME && option == ASC)
+            Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
+        if (fieldSort == NAME && option == DESC)
+            Collections.sort(listFolder, (a, b) -> b.getFolderName().compareTo(a.getFolderName()));
+
+        if (fieldSort == DATE && option == ASC)
+            Collections.sort(listFolder, (a, b) -> a.getCreatedDate().compareTo(b.getCreatedDate()));
+        if (fieldSort == DATE && option == DESC)
+            Collections.sort(listFolder, (a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()));
+
+        if (fieldSort == TYPE && option == ASC)
+            Collections.sort(listFolder, (a, b) -> a.getExt().compareTo(b.getExt()) != 0 ? a.getExt().compareTo(b.getExt()) : a.getFolderName().compareTo(b.getFolderName()));
+        if (fieldSort == TYPE && option == DESC)
+            Collections.sort(listFolder, (a, b) -> b.getExt().compareTo(a.getExt()) != 0 ? b.getExt().compareTo(a.getExt()) : b.getFolderName().compareTo(a.getFolderName()));
     }
 
     void createList() {
@@ -216,7 +227,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
 
-                Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
+                sortList();
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -328,7 +339,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    void toast(String s){
+    void toast(String s) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -386,6 +397,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 TimeUnit.SECONDS,
                                 new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
                         if (status == COPY) {
+                            if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
+                                toast("Không được cop ty đến thư mục con");
+                                dismisLoader();
+                                return;
+                            }
                             for (File f : listFileSelected) {
                                 File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
                                 copy(f, dest, executor);
@@ -408,6 +424,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             //copy
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
                                 toast("Không được di chuyển đến thư mục con");
+                                dismisLoader();
                                 return;
                             }
 
@@ -443,6 +460,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         });
 
                         status = FREE;
+                        dismisLoader();
                         createList();
                     }
                 }).start();
@@ -450,5 +468,72 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             default:
                 break;
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        getMenuInflater().inflate(R.menu.menu_sort, menu);
+        itemName = menu.getItem(0);
+        itemDate = menu.getItem(1);
+        itemType = menu.getItem(2);
+        itemASC = menu.getItem(3);
+        itemDESC = menu.getItem(4);
+
+        itemName.setChecked(fieldSort == NAME);
+        itemDate.setChecked(fieldSort == DATE);
+        itemType.setChecked(fieldSort == TYPE);
+        itemASC.setChecked(option == ASC);
+        itemDESC.setChecked(option == DESC);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.item_name:
+                if (fieldSort != NAME) {
+                    fieldSort = NAME;
+                    sortList();
+                    listFolderAdapter.notifyDataSetChanged();
+                }
+                break;
+            case R.id.item_date:
+                if (fieldSort != DATE) {
+                    fieldSort = DATE;
+                    sortList();
+                    listFolderAdapter.notifyDataSetChanged();
+                }
+                break;
+            case R.id.item_type:
+                if (fieldSort != TYPE) {
+                    fieldSort = TYPE;
+                    sortList();
+                    listFolderAdapter.notifyDataSetChanged();
+                }
+                break;
+            case R.id.item_asc:
+                if (option != ASC) {
+                    option = ASC;
+                    sortList();
+                    listFolderAdapter.notifyDataSetChanged();
+                }
+                break;
+            case R.id.item_desc:
+                if (option != DESC) {
+                    option = DESC;
+                    sortList();
+                    listFolderAdapter.notifyDataSetChanged();
+                }
+                break;
+            default:
+                break;
+        }
+        itemName.setChecked(fieldSort == NAME);
+        itemDate.setChecked(fieldSort == DATE);
+        itemType.setChecked(fieldSort == TYPE);
+        itemASC.setChecked(option == ASC);
+        itemDESC.setChecked(option == DESC);
+        return true;
     }
 }
