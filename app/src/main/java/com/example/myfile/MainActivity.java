@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import jp.wasabeef.recyclerview.animators.SlideInUpAnimator;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -59,22 +60,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private List<File> listFileSelected;
     private int status;
     private final int FREE = 0, COPY = 1, MOVE = 2, DELETE = 3;
-    private ThreadPoolExecutor executor;
+    private ProgressDialog progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        int corePoolSize = 50;
-        int maximumPoolSize = 100;
-        int queueCapacity = 10000;
-        executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                maximumPoolSize, // số maximumPoolSize
-                500, // thời gian một thread được sống nếu không làm gì
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
-
+        progress = new ProgressDialog(this);
+        progress.setTitle("Loading");
+        progress.setMessage("Wait while loading...");
+        progress.setCancelable(false); // disable dismiss by tapping outside of the dialog
         countBackPress = 0;
         status = FREE;
         listFolder = new ArrayList<Folder>();
@@ -113,6 +109,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     countBackPress = 0;
                     if (folder.isFolder) {
                         currentFile = folder.getThis();
+                        listFolder.clear();
                         createList();
                     } else {
                         open_file(folder.getThis());
@@ -150,29 +147,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
-    void setBitmap(Folder folder) {
-        if (folder.getBitmap() != null) return;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            if (!folder.isFolder() && (folder.getFolderName().matches(".*png") ||
-                    folder.getFolderName().matches(".*jpg") ||
-                    folder.getFolderName().matches(".*jpeg"))) {
-                Runnable t = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", folder.getThis());
-                            Bitmap thumbnail = getContentResolver().loadThumbnail(uri, new Size(80, 70), null);
-                            folder.setBitmap(thumbnail);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                };
-                executor.execute(t);
-            }
-        }
-    }
-
     Folder search(List<Folder> a, String s) {
         if (a.size() == 0) return null;
         int l = 0, r = a.size() - 1, mid;
@@ -183,6 +157,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         if (a.get(l).getPath().equals(s)) return a.get(l);
         return null;
+    }
+
+    void showLoader() {
+        try {
+            progress.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    void dismisLoader() {
+        try {
+            progress.dismiss();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     void createList() {
@@ -199,47 +189,58 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
         }
-        tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
-        File f = currentFile;
-        File[] files = f.listFiles();
-        List<Folder> old = listFolder.stream()
-                .filter(item -> !item.isFolder() && (item.getFolderName().matches(".*png") ||
-                        item.getFolderName().matches(".*jpg") ||
-                        item.getFolderName().matches(".*jpeg")))
-                .sorted((a, b) -> a.getPath().compareTo(b.getPath()))
-                .collect(Collectors.toList());
+        showLoader();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                tvBreadcrumb.setText(currentFile.getAbsolutePath().toString().replace("/storage/emulated/0", "/Home"));
+                File f = currentFile;
+                File[] files = f.listFiles();
+                List<Folder> old = listFolder.stream()
+                        .filter(item -> !item.isFolder() && (item.getFolderName().matches(".*png") ||
+                                item.getFolderName().matches(".*jpg") ||
+                                item.getFolderName().matches(".*jpeg")))
+                        .sorted((a, b) -> a.getPath().compareTo(b.getPath()))
+                        .collect(Collectors.toList());
 
-        listFolder.clear();
-        if (files != null) {
-            for (File inFile : files) {
-                if (inFile.isHidden()) continue;
-                String path = inFile.getAbsolutePath();
-                Folder tmp = search(old, path);
-                if (tmp != null) {
-                    listFolder.add(tmp);
-                    log("ok " + path);
-                    continue;
+                listFolder.clear();
+                if (files != null) {
+                    for (File inFile : files) {
+                        if (inFile.isHidden()) continue;
+                        String path = inFile.getAbsolutePath();
+                        Folder tmp = search(old, path);
+                        if (tmp != null) {
+                            listFolder.add(tmp);
+                            log("ok " + path);
+                            continue;
+                        }
+                        log("null " + path);
+                        Folder folder = new Folder();
+                        folder.setPath(path);
+                        folder.setFolderName(inFile.getName());
+                        folder.setCreatedDate(new Date(inFile.lastModified()));
+                        folder.isFolder = inFile.isDirectory();
+                        folder.setThis(inFile);
+                        if (folder.isFolder)
+                            folder.setNumberChild(inFile.listFiles() == null ? 0 : inFile.listFiles().length);
+                        else {
+                            folder.setNumberChild(inFile.length());
+                        }
+                        listFolder.add(folder);
+                    }
                 }
-                log("null " + path);
-                Folder folder = new Folder();
-                folder.setPath(path);
-                folder.setFolderName(inFile.getName());
-                folder.setCreatedDate(new Date(inFile.lastModified()));
-                folder.isFolder = inFile.isDirectory();
-                folder.setThis(inFile);
-                if (folder.isFolder)
-                    folder.setNumberChild(inFile.listFiles() == null ? 0 : inFile.listFiles().length);
-                else {
-                    folder.setNumberChild(inFile.length());
-                }
-                listFolder.add(folder);
+
+                Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        listFolderAdapter.notifyDataSetChanged();
+                    }
+                });
+                dismisLoader();
             }
-        }
+        }).start();
 
-        Collections.sort(listFolder, (a, b) -> a.getFolderName().compareTo(b.getFolderName()));
-        for (Folder folder : listFolder)
-            setBitmap(folder);
-        listFolderAdapter.notifyDataSetChanged();
     }
 
     @Override
@@ -253,6 +254,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             if (!currentFile.getAbsolutePath().equals(Environment.getExternalStorageDirectory().toString())) {
                 currentFile = currentFile.getParentFile();
+                listFolder.clear();
                 createList();
             } else {
                 countBackPress++;
@@ -269,6 +271,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     void log(String s) {
         Log.d(TAG, s);
     }
+
 
     boolean handleSidebar() {
         if (!listFolderAdapter.isShowSelect()) return false;
@@ -375,67 +378,73 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 status = FREE;
                 break;
             case R.id.btnSave:
-                int corePoolSize = 50;
-                int maximumPoolSize = 100;
-                int queueCapacity = 10000;
-                ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                        maximumPoolSize, // số maximumPoolSize
-                        60, // thời gian một thread được sống nếu không làm gì
-                        TimeUnit.SECONDS,
-                        new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
-                if (status == COPY) {
-                    for (File f : listFileSelected) {
-                        File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
-                        copy(f, dest, executor);
-                    }
-                    executor.shutdown();
-                    await(executor);
-                    Toast.makeText(this, "Copy thành công", Toast.LENGTH_SHORT).show();
-                } else if (status == DELETE) {
-                    for (File f : listFileSelected) {
-                        deleteFile(f, executor);
-                    }
-                    executor.shutdown();
-                    await(executor);
-                    for (File f : listFileSelected) {
-                        deleteDir(f);
-                    }
-                    Toast.makeText(this, "Delete thành công", Toast.LENGTH_SHORT).show();
-                } else if (status == MOVE) {
-                    //copy sau do delete
-                    //copy
-                    if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
-                        Toast.makeText(this, "Không được di chuyển đến thư mục con", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                showLoader();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        int corePoolSize = 50;
+                        int maximumPoolSize = 100;
+                        int queueCapacity = 10000;
+                        ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                                maximumPoolSize, // số maximumPoolSize
+                                60, // thời gian một thread được sống nếu không làm gì
+                                TimeUnit.SECONDS,
+                                new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
+                        if (status == COPY) {
+                            for (File f : listFileSelected) {
+                                File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
+                                copy(f, dest, executor);
+                            }
+                            executor.shutdown();
+                            await(executor);
+                            Toast.makeText(getApplicationContext(), "Copy thành công", Toast.LENGTH_SHORT).show();
+                        } else if (status == DELETE) {
+                            for (File f : listFileSelected) {
+                                deleteFile(f, executor);
+                            }
+                            executor.shutdown();
+                            await(executor);
+                            for (File f : listFileSelected) {
+                                deleteDir(f);
+                            }
+                            Toast.makeText(getApplicationContext(), "Delete thành công", Toast.LENGTH_SHORT).show();
+                        } else if (status == MOVE) {
+                            //copy sau do delete
+                            //copy
+                            if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
+                                Toast.makeText(getApplicationContext(), "Không được di chuyển đến thư mục con", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
 
-                    for (File f : listFileSelected) {
-                        File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
-                        copy(f, dest, executor);
-                    }
-                    executor.shutdown();
-                    await(executor);
+                            for (File f : listFileSelected) {
+                                File dest = new File(currentFile.getAbsolutePath() + "/" + f.getName());
+                                copy(f, dest, executor);
+                            }
+                            executor.shutdown();
+                            await(executor);
 
-                    //delete
-                    executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
-                            maximumPoolSize, // số maximumPoolSize
-                            60, // thời gian một thread được sống nếu không làm gì
-                            TimeUnit.SECONDS,
-                            new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
-                    for (File f : listFileSelected) {
-                        deleteFile(f, executor);
+                            //delete
+                            executor = new ThreadPoolExecutor(corePoolSize, // Số corePoolSize
+                                    maximumPoolSize, // số maximumPoolSize
+                                    60, // thời gian một thread được sống nếu không làm gì
+                                    TimeUnit.SECONDS,
+                                    new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
+                            for (File f : listFileSelected) {
+                                deleteFile(f, executor);
+                            }
+                            executor.shutdown();
+                            await(executor);
+                            for (File f : listFileSelected) {
+                                deleteDir(f);
+                            }
+                            Toast.makeText(getApplicationContext(), "Move thành công", Toast.LENGTH_SHORT).show();
+                        }
+                        listFileSelected.clear();
+                        sidebarSave.setVisibility(View.GONE);
+                        status = FREE;
+                        createList();
                     }
-                    executor.shutdown();
-                    await(executor);
-                    for (File f : listFileSelected) {
-                        deleteDir(f);
-                    }
-                    Toast.makeText(this, "Move thành công", Toast.LENGTH_SHORT).show();
-                }
-                listFileSelected.clear();
-                sidebarSave.setVisibility(View.GONE);
-                status = FREE;
-                createList();
+                }).start();
                 break;
             default:
                 break;

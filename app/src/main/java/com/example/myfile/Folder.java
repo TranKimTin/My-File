@@ -15,15 +15,6 @@ public class Folder {
     private Uri uri;
     private File This;
     private boolean selected;
-    private Bitmap bitmap;
-
-    public Bitmap getBitmap() {
-        return bitmap;
-    }
-
-    public void setBitmap(Bitmap bitmap) {
-        this.bitmap = bitmap;
-    }
 
     public boolean isSelected() {
         return selected;
@@ -36,7 +27,6 @@ public class Folder {
     Folder(){
         uri = null;
         selected = false;
-        bitmap = null;
     }
     public File getThis() {
         return This;
