@@ -397,7 +397,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
                         if (status == COPY) {
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
-                                toast("Không được cop ty đến thư mục con");
+                                toast("Không được copy đến thư mục con");
                                 hideProgressBar();
                                 return;
                             }
@@ -424,6 +424,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
                                 toast("Không được di chuyển đến thư mục con");
                                 hideProgressBar();
+                                return;
+                            }
+                            if(currentFile.getAbsolutePath().equals(listFileSelected.get(0).getParentFile().getAbsolutePath())){
+                                toast("Di chuyển thành công");
+                                hideProgressBar();
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        sidebarSave.setVisibility(View.GONE);
+                                    }
+                                });
                                 return;
                             }
 
