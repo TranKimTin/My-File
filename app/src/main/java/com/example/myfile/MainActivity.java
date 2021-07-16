@@ -1,6 +1,7 @@
 package com.example.myfile;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -8,7 +9,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.app.ActionBar;
+import android.app.Activity;
 import android.app.ProgressDialog;
+import android.app.SearchManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -17,17 +21,24 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.FileUtils;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
+import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,10 +60,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    public static String TAG = "MY FILE";
     private List<Folder> listFolder;
     private RecyclerView rcvListFolder;
     private ListFolderAdapter listFolderAdapter;
-    private String TAG = "MY FILE";
     private File currentFile;
     private TextView tvBreadcrumb;
     private int countBackPress;
@@ -62,29 +73,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private List<File> listFileSelected;
     private int status;
     private final int FREE = 0, COPY = 1, MOVE = 2, DELETE = 3;
-    private ProgressDialog progress;
     private int fieldSort, option;
     private final int NAME = 0, DATE = 1, TYPE = 2, ASC = 1, DESC = 2;
     private MenuItem itemName, itemDate, itemType, itemASC, itemDESC;
-
+    private CountDownTimer timeout;
+    private String search;
+    private SearchView searchView;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        progress = new ProgressDialog(this);
-        progress.setTitle("Loading");
-        progress.setMessage("Wait while loading...");
-        progress.setCancelable(false); // disable dismiss by tapping outside of the dialog
-
         countBackPress = 0;
         status = FREE;
         fieldSort = DATE;
         option = DESC;
+        search = "";
         listFolder = new ArrayList<Folder>();
         currentFile = new File(Environment.getExternalStorageDirectory().toString());
-        listFolderAdapter = new ListFolderAdapter(this, (ArrayList<Folder>) listFolder);
+        listFolderAdapter = new ListFolderAdapter(this, (ArrayList<Folder>) listFolder, search);
         listFileSelected = new ArrayList<File>();
 
         rcvListFolder = findViewById(R.id.rcvListFolder);
@@ -97,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnDelete = findViewById(R.id.btnDelete);
         btnSave = findViewById(R.id.btnSave);
         btnCancel = findViewById(R.id.btnCancel);
+        progressBar = findViewById(R.id.search_progress_bar);
 
         cbxAll.setOnClickListener(this);
         btnMove.setOnClickListener(this);
@@ -116,6 +126,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     if (folder.isFolder) {
                         currentFile = folder.getThis();
                         listFolder.clear();
+                        searchView.setQuery("", false);
+                        searchView.clearFocus();
+                        search = "";
+                        listFolderAdapter.setSearch(search);
                         createList();
                     } else {
                         open_file(folder.getThis());
@@ -153,21 +167,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
-    void showLoader() {
-        try {
-            if (!progress.isShowing()) progress.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    void dismisLoader() {
-        try {
-            if (progress.isShowing()) progress.dismiss();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     void sortList() {
         if (fieldSort == NAME && option == ASC)
@@ -200,7 +199,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
         }
-        showLoader();
+        showProgressBar();
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -234,7 +233,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         listFolderAdapter.notifyDataSetChanged();
                     }
                 });
-                dismisLoader();
+                hideProgressBar();
             }
         }).start();
 
@@ -384,7 +383,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 status = FREE;
                 break;
             case R.id.btnSave:
-                showLoader();
+                showProgressBar();
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -399,7 +398,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         if (status == COPY) {
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
                                 toast("Không được cop ty đến thư mục con");
-                                dismisLoader();
+                                hideProgressBar();
                                 return;
                             }
                             for (File f : listFileSelected) {
@@ -424,7 +423,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             //copy
                             if (currentFile.getAbsolutePath().contains(listFileSelected.get(0).getAbsolutePath())) {
                                 toast("Không được di chuyển đến thư mục con");
-                                dismisLoader();
+                                hideProgressBar();
                                 return;
                             }
 
@@ -460,7 +459,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         });
 
                         status = FREE;
-                        dismisLoader();
+                        hideProgressBar();
                         createList();
                     }
                 }).start();
@@ -468,6 +467,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             default:
                 break;
         }
+    }
+
+    void showProgressBar() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    void hideProgressBar() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.GONE);
+            }
+        });
     }
 
     @Override
@@ -485,6 +502,64 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         itemType.setChecked(fieldSort == TYPE);
         itemASC.setChecked(option == ASC);
         itemDESC.setChecked(option == DESC);
+
+        MenuInflater menuInflater = getMenuInflater();
+//        menuInflater.inflate(R.menu.menu_sort, menu);
+
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+
+        SearchManager searchManager = (SearchManager) MainActivity.this.getSystemService(Context.SEARCH_SERVICE);
+
+        searchView = null;
+        if (searchItem != null) {
+            searchView = (SearchView) searchItem.getActionView();
+        }
+        if (searchView != null) {
+            searchView.setSearchableInfo(searchManager.getSearchableInfo(MainActivity.this.getComponentName()));
+            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) {
+                    return false;
+                }
+
+                @Override
+                public boolean onQueryTextChange(String s) {
+                    if (timeout != null) timeout.cancel();
+                    showProgressBar();
+                    search = s;
+                    timeout = new CountDownTimer(500, 500) {
+                        public void onTick(long millisUntilFinished) {
+                        }
+
+                        public void onFinish() {
+                            listFolderAdapter.setSearch(search);
+                            listFolderAdapter.notifyDataSetChanged();
+                            hideProgressBar();
+                        }
+
+                    }.start();
+                    return false;
+                }
+            });
+            searchView.onActionViewExpanded();
+            searchView.setQuery("", false);
+            searchView.clearFocus();
+            MenuItem menuItem = menu.findItem(R.id.action_search);
+            menuItem.expandActionView();
+            menuItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(MenuItem item) {
+                    toast("open");
+                    return true;
+                }
+
+                @Override
+                public boolean onMenuItemActionCollapse(MenuItem item) {
+                    onBackPressed();
+                    return false;
+                }
+            });
+        }
         return true;
     }
 

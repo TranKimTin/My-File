@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,14 +35,18 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
+import static com.example.myfile.MainActivity.TAG;
+
 public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.ViewHolder> {
     private ArrayList<Folder> listFolder;
     private Context mContext;
     private MyInterface mInterface;
     private boolean showSelect;
     private ThreadPoolExecutor executor;
+    private String search;
 
-    public ListFolderAdapter(Context context, ArrayList<Folder> list) {
+    public ListFolderAdapter(Context context, ArrayList<Folder> list, String s) {
+        search = s;
         listFolder = list;
         mContext = context;
         showSelect = false;
@@ -54,6 +59,10 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
                 TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<>(queueCapacity)); // Blocking queue để cho request đợi
 
+    }
+
+    public void setSearch(String search) {
+        this.search = search;
     }
 
     public boolean isSelectedAll() {
@@ -105,10 +114,20 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Folder folder = listFolder.get(position);
+        if(search.length() > 0 && !folder.getFolderName().toLowerCase().contains(search.toLowerCase())){
+            holder.itemView.setVisibility(View.GONE);
+            holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(0, 0));
+            return;
+        }
+        else{
+            holder.itemView.setVisibility(View.VISIBLE);
+            holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
         if (showSelect) holder.cbxSelected.setVisibility(View.VISIBLE);
         else holder.cbxSelected.setVisibility(View.GONE);
         holder.cbxSelected.setChecked(listFolder.get(position).isSelected());
-        Folder folder = listFolder.get(position);
+
         holder.tvName.setText(folder.getFolderName());
         if (folder.isFolder) holder.tvNumberChild.setText(folder.getNumberChild() + " mục");
         else {
@@ -205,9 +224,9 @@ public class ListFolderAdapter extends RecyclerView.Adapter<ListFolderAdapter.Vi
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
-        private TextView tvName, tvCreatedDate, tvNumberChild;
-        private ImageView imvFolder;
-        private CheckBox cbxSelected;
+        public TextView tvName, tvCreatedDate, tvNumberChild;
+        public ImageView imvFolder;
+        public CheckBox cbxSelected;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);

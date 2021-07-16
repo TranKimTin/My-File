@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item android:id="@+id/item_name"
         android:checkable="true"
         android:title="Name"/>
@@ -15,4 +16,12 @@
     <item android:id="@+id/item_desc"
         android:checkable="true"
         android:title="Descending"/>
+
+    <item
+        android:id="@+id/action_search"
+        android:icon="@android:drawable/ic_menu_search"
+        app:showAsAction="always|collapseActionView"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        android:focusableInTouchMode="true"
+        android:title="Search"/>
 </menu>
