@@ -1,6 +1,5 @@
 package com.example.myfile;
 
-import android.graphics.Bitmap;
 import android.net.Uri;
 
 import java.io.File;

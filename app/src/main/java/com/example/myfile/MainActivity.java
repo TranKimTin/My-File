@@ -1,41 +1,20 @@
 package com.example.myfile;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.Manifest;
-import android.app.ActionBar;
-import android.app.Activity;
-import android.app.ProgressDialog;
 import android.app.SearchManager;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
-import android.os.FileUtils;
-import android.os.Looper;
-import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
-import android.util.Size;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ProgressBar;
@@ -44,23 +23,23 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-    public static String TAG = "MY FILE";
+    public static String TAG = "APPMYFILE";
     private List<Folder> listFolder;
     private RecyclerView rcvListFolder;
     private ListFolderAdapter listFolderAdapter;
@@ -426,7 +405,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 hideProgressBar();
                                 return;
                             }
-                            if(currentFile.getAbsolutePath().equals(listFileSelected.get(0).getParentFile().getAbsolutePath())){
+                            if (currentFile.getAbsolutePath().equals(listFileSelected.get(0).getParentFile().getAbsolutePath())) {
                                 toast("Di chuyển thành công");
                                 hideProgressBar();
                                 runOnUiThread(new Runnable() {
@@ -462,18 +441,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             toast("Move thành công");
                         }
                         listFileSelected.clear();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                sidebarSave.setVisibility(View.GONE);
-                            }
-                        });
-
                         status = FREE;
                         hideProgressBar();
                         createList();
                     }
                 }).start();
+                sidebarSave.setVisibility(View.GONE);
                 break;
             default:
                 break;
@@ -535,6 +508,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 @Override
                 public boolean onQueryTextChange(String s) {
+                    if (search.equals(s)) return true;
                     if (timeout != null) timeout.cancel();
                     showProgressBar();
                     search = s;
@@ -560,7 +534,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             menuItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
                 @Override
                 public boolean onMenuItemActionExpand(MenuItem item) {
-                    toast("open");
                     return true;
                 }
 
