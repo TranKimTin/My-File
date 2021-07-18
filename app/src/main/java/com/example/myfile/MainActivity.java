@@ -230,6 +230,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (!currentFile.getAbsolutePath().equals(Environment.getExternalStorageDirectory().toString())) {
                 currentFile = currentFile.getParentFile();
                 listFolder.clear();
+                searchView.setQuery("", false);
+                searchView.clearFocus();
+                search = "";
+                listFolderAdapter.setSearch(search);
                 createList();
             } else {
                 countBackPress++;
